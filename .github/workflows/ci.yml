@@ -1,4 +1,4 @@
-name: Local Native Deployment
+name: MLOps Pipeline - Build and Local Deploy
 
 on:
   push:
@@ -6,15 +6,41 @@ on:
       - main
 
 jobs:
-  deploy:
-    # 윈도우 로컬 컴퓨터(self-hosted runner)에서 직접 실행
+  # 1. 빌드 및 이미지를 Docker Hub에 저장 (클라우드 서버에서 실행)
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/ml-api-server:latest
+          push: true
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/ml-api-server:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/ml-api-server:buildcache,mode=max
+
+  # 2. 로컬 컴퓨터에 최신 코드 반영 (회원님의 PC Self-hosted runner에서 실행)
+  deploy-to-local:
+    needs: build-and-push
     runs-on: self-hosted
-    
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
       
       - name: Set up Python dependencies
+        # 윈도우 보안 정책 문제 방지를 위해 일반 cmd 쉘 또는 powershell 바이패스 사용
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
@@ -25,12 +51,16 @@ jobs:
           $process = Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -First 1
           if ($process) {
               Stop-Process -Id $process -Force
-              Write-Output "Stopped existing uvicorn process"
+              Write-Output "Stopped process on port 8000"
           }
         
       - name: Start new uvicorn server (Background)
         shell: powershell
         run: |
-          # 백그라운드 프로세스로 실행
-          Start-Process -FilePath "python" -ArgumentList "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000" -WindowStyle Hidden
-          Write-Output "Handwriting AI Server restarted successfully on Local PC!"
+          # 백그라운드 프로세스로 새 서버 가동
+          $psi = New-Object System.Diagnostics.ProcessStartInfo
+          $psi.FileName = "python"
+          $psi.Arguments = "-m uvicorn main:app --host 0.0.0.0 --port 8000"
+          $psi.WindowStyle = "Hidden" # 창 숨김 설정
+          [System.Diagnostics.Process]::Start($psi)
+          Write-Output "New Handwriting-API server started successfully!"
