@@ -1,0 +1,6 @@
+fastapi>=0.100.0
+uvicorn>=0.22.0
+python-multipart>=0.0.6
+Pillow>=10.0.0
+# pytesseract>=0.3.10 # tesseract를 사용할 경우 주석 해제 (Tesseract-OCR 설치 필요)
+# easyocr>=1.7.0 # Pytorch 기반 경량 모델. 설치 시 용량이 꽤 나올 수 있습니다.
