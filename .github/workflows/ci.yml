@@ -1,44 +1,13 @@
-name: Build and Push Docker Image
+name: Local Native Deployment
 
 on:
   push:
     branches:
-      - main  # main 브랜치에 코드가 push될 때만 실행
-  # pull_request:
-  #   branches:
-  #     - main
+      - main
 
 jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Check out the repo
-        uses: actions/checkout@v4
-      
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-          
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          # Docker Hub의 본인 계정 ID와 이미지 이름을 적어줍니다.
-          # 예: ${{ secrets.DOCKERHUB_USERNAME }}/ml-api-server:latest
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/ml-api-server:latest
-          push: true
-          # 캐싱을 활용해 빌드 속도 최적화
-          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/ml-api-server:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/ml-api-server:buildcache,mode=max
-
-  deploy-to-local:
-    needs: build-and-push
+  deploy:
+    # 윈도우 로컬 컴퓨터(self-hosted runner)에서 직접 실행
     runs-on: self-hosted
     
     steps:
@@ -56,11 +25,12 @@ jobs:
           $process = Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -First 1
           if ($process) {
               Stop-Process -Id $process -Force
-              Write-Output "Stopped process on port 8000"
+              Write-Output "Stopped existing uvicorn process"
           }
         
       - name: Start new uvicorn server (Background)
         shell: powershell
         run: |
+          # 백그라운드 프로세스로 실행
           Start-Process -FilePath "python" -ArgumentList "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000" -WindowStyle Hidden
-          Write-Output "New Handwriting-API server started successfully!"
+          Write-Output "Handwriting AI Server restarted successfully on Local PC!"
