@@ -36,29 +36,3 @@ jobs:
           # 캐싱을 활용해 빌드 속도 최적화
           cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/ml-api-server:buildcache
           cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/ml-api-server:buildcache,mode=max
-
-  deploy-to-local:
-    # 빌드 및 푸시 작업이 완전히 성공한 후에만 실행
-    needs: build-and-push
-    # 회원님이 등록한 로컬 컴퓨터(self-hosted runner)에서 실행
-    runs-on: self-hosted
-    
-    steps:
-      - name: Log in to Docker Hub
-        shell: pwsh
-        run: docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" -p "${{ secrets.DOCKERHUB_TOKEN }}"
-        
-      - name: Pull the latest Docker image
-        shell: pwsh
-        run: docker pull ${{ secrets.DOCKERHUB_USERNAME }}/ml-api-server:latest
-        
-      - name: Stop and Remove old container
-        shell: pwsh
-        run: |
-          docker stop ml-api-server 2>$null
-          docker rm ml-api-server 2>$null
-          Write-Output "Old container cleaned up"
-        
-      - name: Run new container
-        shell: pwsh
-        run: docker run -d --name ml-api-server -p 8000:8000 ${{ secrets.DOCKERHUB_USERNAME }}/ml-api-server:latest
