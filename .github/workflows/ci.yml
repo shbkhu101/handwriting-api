@@ -49,7 +49,7 @@ jobs:
         run: |
           $process = Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -First 1
           if ($process) {
-              Stop-Process -Id $process -Force
+              Stop-Process -Id $process -Force -ErrorAction SilentlyContinue
               Write-Output "기존 구버전 서버를 성공적으로 종료했습니다."
           }
         
