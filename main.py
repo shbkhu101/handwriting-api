@@ -1,5 +1,5 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 import logging
 
 from models.ocr_engine import HandwritingOCRModel
@@ -23,9 +23,13 @@ async def load_model():
     logger.info("Initializing ML Model...")
     ocr_model = HandwritingOCRModel()
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 def read_root():
-    return {"message": "Handwriting Recognition API Server is Running!"}
+    try:
+        with open("static/index.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except Exception as e:
+        return HTMLResponse(content="<h1>UI 파일을 찾을 수 없습니다. static/index.html 을 확인하세요.</h1>")
 
 @app.get("/health")
 def health_check():
