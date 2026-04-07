@@ -43,20 +43,16 @@ jobs:
     
     steps:
       - name: Log in to Docker Hub
-        shell: pwsh
         run: docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" -p "${{ secrets.DOCKERHUB_TOKEN }}"
         
       - name: Pull the latest Docker image
-        shell: pwsh
         run: docker pull ${{ secrets.DOCKERHUB_USERNAME }}/ml-api-server:latest
         
       - name: Stop and Remove old container
-        shell: pwsh
         run: |
-          docker stop ml-api-server 2>$null
-          docker rm ml-api-server 2>$null
+          docker stop ml-api-server 2>$null || $true
+          docker rm ml-api-server 2>$null || $true
           Write-Output "Old container cleaned up"
         
       - name: Run new container
-        shell: pwsh
         run: docker run -d --name ml-api-server -p 8000:8000 ${{ secrets.DOCKERHUB_USERNAME }}/ml-api-server:latest
