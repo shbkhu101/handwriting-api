@@ -1,4 +1,4 @@
-name: Handwriting AI - Local Deployment
+name: MLOps Pipeline - Full CI/CD
 
 on:
   push:
@@ -6,10 +6,35 @@ on:
       - main
 
 jobs:
-  automation-pipeline:
-    # 모든 과정을 회원님의 로컬 PC(self-hosted runner)에서 한 번에 처리합니다.
+  # [상자 1] 깃허브 클라우드에서 수행되는 이미지 빌드 (CI)
+  Build-and-Push-Docker-Image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/ml-api-server:latest
+          push: true
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/ml-api-server:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/ml-api-server:buildcache,mode=max
+
+  # [상자 2] 회원님의 로컬 윈도우 PC에서 수행되는 자동 배포 (CD)
+  Deploy-to-Local-Windows-Server:
+    needs: Build-and-Push-Docker-Image
     runs-on: self-hosted
-    
     steps:
       - name: 1. 코드를 깃허브에서 가져오기 (Checkout)
         uses: actions/checkout@v4
@@ -31,10 +56,9 @@ jobs:
       - name: 4. 최신 AI 모델 서버 백그라운드 재가동
         shell: powershell
         run: |
-          # 백그라운드로 실행하여 파이프라인이 멈추지 않게 함
           $psi = New-Object System.Diagnostics.ProcessStartInfo
           $psi.FileName = "python"
           $psi.Arguments = "-m uvicorn main:app --host 0.0.0.0 --port 8000"
           $psi.WindowStyle = "Hidden" 
           [System.Diagnostics.Process]::Start($psi)
-          Write-Output "최신 버전의 Handwriting AI 서버가 성공적으로 시작되었습니다!"
+          Write-Output "최신 버전의 Handwriting AI 서버가 로컬 서버에 배포되었습니다!"
