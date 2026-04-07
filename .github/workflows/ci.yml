@@ -42,17 +42,25 @@ jobs:
     runs-on: self-hosted
     
     steps:
-      - name: Log in to Docker Hub
-        run: docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" -p "${{ secrets.DOCKERHUB_TOKEN }}"
-        
-      - name: Pull the latest Docker image
-        run: docker pull ${{ secrets.DOCKERHUB_USERNAME }}/ml-api-server:latest
-        
-      - name: Stop and Remove old container
+      - name: Check out the repo
+        uses: actions/checkout@v4
+      
+      - name: Set up Python dependencies
         run: |
-          docker stop ml-api-server 2>$null || $true
-          docker rm ml-api-server 2>$null || $true
-          Write-Output "Old container cleaned up"
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: Kill existing server on port 8000
+        shell: powershell
+        run: |
+          $process = Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -First 1
+          if ($process) {
+              Stop-Process -Id $process -Force
+              Write-Output "Stopped process on port 8000"
+          }
         
-      - name: Run new container
-        run: docker run -d --name ml-api-server -p 8000:8000 ${{ secrets.DOCKERHUB_USERNAME }}/ml-api-server:latest
+      - name: Start new uvicorn server (Background)
+        shell: powershell
+        run: |
+          Start-Process -FilePath "python" -ArgumentList "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000" -WindowStyle Hidden
+          Write-Output "New Handwriting-API server started successfully!"
