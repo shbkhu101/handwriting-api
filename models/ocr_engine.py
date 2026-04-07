@@ -20,9 +20,28 @@ class HandwritingOCRModel:
             # 2. 이미지 배열을 EasyOCR에 넣고 글자 추출!
             result = self.reader.readtext(img_numpy)
             
-            # 3. 반환된 결과 리스트들을 띄어쓰기로 합쳐서 평문 텍스트로 만들기
-            # readtext의 결과물 구조 = [(좌표, 추출된 텍스트, 신뢰도_확률), ...]
-            extracted_text = " ".join([text[1] for text in result])
+            # 3. 반환된 텍스트의 언어를 식별하여 (텍스트, 언어) 형태로 가공하기
+            processed_results = []
+            for bbox, text, conf in result:
+                # 간단한 규칙 기반 언어 판별
+                has_korean = any(ord('가') <= ord(char) <= ord('힣') for char in text)
+                has_english = any('a' <= char.lower() <= 'z' for char in text)
+                
+                if has_korean and has_english:
+                    lang_label = "혼용"
+                elif has_korean:
+                    lang_label = "한국어"
+                elif has_english:
+                    lang_label = "영어"
+                elif any(char.isdigit() for char in text):
+                    lang_label = "숫자"
+                else:
+                    lang_label = "기호/기타"
+                    
+                processed_results.append(f"({text}, {lang_label})")
+            
+            # 최종 결과물 결합
+            extracted_text = " ".join(processed_results)
             
             return extracted_text
 
